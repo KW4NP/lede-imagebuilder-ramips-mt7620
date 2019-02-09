@@ -112,7 +112,7 @@ _call_image: staging_dir/host/.prereq-build
 	echo
 	rm -rf $(TARGET_DIR)
 	mkdir -p $(TARGET_DIR) $(BIN_DIR) $(TMP_DIR) $(DL_DIR)
-	if [ ! -f "$(PACKAGE_DIR)/Packages" ] || [ ! -f "$(PACKAGE_DIR)/Packages.gz" ] || [ "`find $(PACKAGE_DIR) -cnewer $(PACKAGE_DIR)/Packages.gz`" ]; then \
+	if [ ! -f "$(PACKAGE_DIR)/Packages" ] || [ ! -f "$(PACKAGE_DIR)/Packages.gz" ] || [ "`find $(PACKAGE_DIR) -cnewer $(PACKAGE_DIR)/Packages.gz` -not -name "*.sig"" ]; then \
 		echo "Package list missing or not up-to-date, generating it.";\
 		$(MAKE) package_index; \
 	else \
@@ -140,6 +140,12 @@ package_index: FORCE
 	(cd $(PACKAGE_DIR); $(SCRIPT_DIR)/ipkg-make-index.sh . > Packages && \
 		gzip -9nc Packages > Packages.gz \
 	) >/dev/null 2>/dev/null
+ifdef CONFIG_SIGNED_PACKAGES
+	@echo Signing package index...
+	(cd $(PACKAGE_DIR) || continue; \
+		$(STAGING_DIR_HOST)/bin/usign -S -m Packages -s $(BUILD_KEY); \
+	) >/dev/null 2>/dev/null
+endif
 	$(OPKG) update || true
 
 package_install: FORCE
@@ -160,7 +166,7 @@ prepare_files: FORCE
 	mkdir -p $(TARGET_DIR)/etc
 	mkdir -p $(TARGET_DIR)/etc/opkg
 	@echo "$(VERSION)" > $(TARGET_DIR)/etc/glversion
-	@echo "src/gz packages http://download.gl-inet.com/lede/packages/$(VERSION)/$(BOARD)/$(SUBTARGET)" > $(TARGET_DIR)/etc/opkg/distfeeds.conf
+	@echo "src/gz packages http://www.gl-inet.com/lede/$(VERSION)/$(BOARD)/$(SUBTARGET)" > $(TARGET_DIR)/etc/opkg/distfeeds.conf
 
 copy_files: FORCE
 	@echo
